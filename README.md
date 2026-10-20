@@ -87,7 +87,7 @@ XX-topic-name/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/agentic-python-mastery.git
+git clone https://github.com/Iam-shyamrathore/agentic-python-mastery.git
 cd agentic-python-mastery
 ```
 
