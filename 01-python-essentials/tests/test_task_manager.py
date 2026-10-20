@@ -1,8 +1,9 @@
 """Tests for Topic 01: CLI Task Manager."""
 
+import json
+from pathlib import Path
 import sys
 import tempfile
-from pathlib import Path
 import pytest
 
 # Add solution directory to path for clean import
@@ -36,6 +37,24 @@ def test_task_serialization():
     assert restored.title == task.title
     assert restored.priority == task.priority
     assert restored.id == task.id
+
+
+def test_task_defensive_deserialization():
+    """Test handling of invalid dates, unknown enums, and extra attributes."""
+    malformed = {
+        "title": "Malformed Attributes",
+        "description": "Agent tool injected extra keys",
+        "status": "NON_EXISTENT_STATUS",
+        "priority": "ULTRA_URGENT",
+        "created_at": "invalid-iso-date-string",
+        "hallucinated_param": "should_be_ignored",
+    }
+    task = Task.from_dict(malformed)
+    assert task.title == "Malformed Attributes"
+    assert task.status == TaskStatus.PENDING
+    assert task.priority == TaskPriority.MEDIUM
+    assert hasattr(task, "created_at")
+    assert not hasattr(task, "hallucinated_param")
 
 
 def test_manager_crud_operations():
@@ -72,3 +91,40 @@ def test_manager_crud_operations():
         manager_reload = TaskManager(storage_path=storage)
         assert len(manager_reload.list_tasks()) == 1
         assert manager_reload.get_task(t1.id).status == TaskStatus.COMPLETED
+
+
+def test_manager_query_search():
+    manager = TaskManager()
+    manager.add_task("Build LangGraph agent", description="Multi-agent supervisor pattern")
+    manager.add_task("Refactor database queries", description="Use async session")
+    manager.add_task("Write unit tests", description="Pytest suite for agents")
+
+    # Search in title
+    results_title = manager.list_tasks(query="LangGraph")
+    assert len(results_title) == 1
+    assert "LangGraph" in results_title[0].title
+
+    # Search in description
+    results_desc = manager.list_tasks(query="async session")
+    assert len(results_desc) == 1
+    assert results_desc[0].title == "Refactor database queries"
+
+    # Case-insensitive search
+    results_ci = manager.list_tasks(query="SUPERVISOR")
+    assert len(results_ci) == 1
+
+
+def test_corrupted_json_recovery():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = Path(tmpdir) / "tasks.json"
+        # Write corrupted JSON to disk
+        storage.write_text("{corrupt: json content[unclosed", encoding="utf-8")
+
+        # Loading should not crash; it should log error, make backup, and reset
+        manager = TaskManager(storage_path=storage)
+        assert len(manager.list_tasks()) == 0
+
+        # Verify forensic backup was created
+        backup_files = list(Path(tmpdir).glob("tasks.corrupted.*"))
+        assert len(backup_files) == 1
+        assert "{corrupt" in backup_files[0].read_text(encoding="utf-8")

@@ -117,10 +117,14 @@ cp .env.example .env
 
 ---
 
-## 🎓 Learning Philosophy
+## 🎓 Learning Philosophy & Production Standards
 
 1. **Active Retrieval over Passive Consumption**: You will write real code in `starter/`, make mistakes, run tests, and debug alongside your AI agent.
-2. **Production Standards from Day 1**: Type hints (`typing`), Pydantic models, structured logging, error handling, and unit tests are baked into every topic.
+2. **Production Standards from Day 1**:
+   - **No Toy Skeletons**: Every solution is hardened for production use with defensive error boundaries, logging, input sanitization, and graceful degradation.
+   - **Explanatory Comments**: Code contains real architectural comments answering *why* a particular design pattern was chosen and what breaks in production if omitted.
+   - **Type Safety**: Strictly enforced `typing` and Pydantic v2 schemas across all 11 modules.
+   - **Automated Verification**: Complete test suites using `pytest` and `pytest-asyncio` so you and your agent can verify every milestone objectively.
 3. **From Zero to Capstone**: Each topic builds directly on the previous one, culminating in an end-to-end production AI service in Topic 11.
 
 ---

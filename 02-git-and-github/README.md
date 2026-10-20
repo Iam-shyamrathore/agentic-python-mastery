@@ -1,21 +1,46 @@
 # 🐙 Topic 02: Git & GitHub for AI Engineers
 
-> **Master essential version control, branching strategies, secret leak prevention, and automated CI/CD workflows for AI projects.**
+> **Master version control, conventional commit standards, automated API key leak prevention, and robust CI/CD quality gates for autonomous AI agents.**
 
 ---
 
-## 🎯 Why Version Control Matters in AI Engineering
+## 🎯 Why Version Control & Git Security Matter in AI Engineering
 
-In AI development, repositories hold prompt templates, eval sets, model configs, agent pipelines, and deployment scripts. A single careless `git push` can:
-1. Leak \$10,000+ worth of OpenAI or Anthropic API keys to public scrapers within seconds.
-2. Commit multi-gigabyte model weights or vector database files, blowing up repository size.
-3. Break agent orchestration pipelines in production due to unpinned dependencies.
+In modern AI systems, autonomous coding agents (Claude Code, Cursor, Copilot, SWE-bench runners) generate, modify, and commit code continuously. A single vulnerability in your repository quality gate can:
+1. **Leak High-Privilege API Keys**: OpenAI, Anthropic, Google Gemini, and Groq keys accidentally staged into a public GitHub repository are harvested by automated scrapers within **30 to 90 seconds**.
+2. **Corrupt Agent PR Automation**: Semantic release pipelines, changelog generators, and branch policies rely on Conventional Commits (`feat:`, `fix:`, `refactor:`). Unstructured commit messages break continuous deployment.
+3. **Trigger Detached HEAD Pipeline Failures**: Containerized CI runners and agent worktrees often operate in detached HEAD states. Without resilient branch detection, deployment scripts fail silently.
+
+---
+
+## 💥 Production War Stories & Hard-Learned Lessons
+
+### 💥 War Story 1: The $14,000 Overnight Key Scraping Incident
+> **The Scenario:** A developer testing an autonomous LangChain agent wrote a quick test script:
+> ```python
+> # ❌ test_eval.py
+> OPENAI_API_KEY = "sk-proj-..."
+> ```
+> The developer ran `git add . && git commit -m "WIP" && git push origin main`.
+> 
+> **The Incident:** Even though the commit was force-reverted 8 minutes later, GitHub's public event API mirrors commits instantly across third-party archives. Within 90 seconds, an automated scraper in Eastern Europe extracted the key and launched thousands of concurrent `gpt-4` batch embeddings, racking up **$14,200 in API charges** by 4:00 AM before OpenAI's automated abuse detection severed the account.
+> 
+> **The Fix:** Never rely on file name checks alone. Implement pre-commit hooks and CI gates that scan file *contents* with high-precision regular expressions detecting `sk-proj-`, `sk-ant-`, `AIzaSy`, and `gsk_` tokens.
+
+---
+
+### 💥 War Story 2: The Agentic Merge Conflict Lockout
+> **The Scenario:** A team ran 4 parallel subagents implementing different tools on feature branches. Each agent executed `git merge main` when finishing.
+> 
+> **The Incident:** Because two agents modified `tools/__init__.py` simultaneously, a 3-way merge conflict was generated with standard conflict markers (`<<<<<<< HEAD`, `=======`). When the next agent read the file to register another tool, the Python interpreter crashed with `SyntaxError: invalid syntax`. The agent attempted to "fix" the syntax error by deleting the conflicting tool registrations, wiping out another agent's work.
+> 
+> **The Fix:** Enforce a strict **Rebase & Linear History** workflow (`git fetch origin && git rebase origin/main`) with pre-merge validation checks in CI.
 
 ---
 
 ## 📖 Complete Zero-to-100 Theory & Reference
 
-### 1. Essential Daily Git Commands
+### 1. Essential Daily Git Commands for AI Engineers
 
 ```bash
 # Check status and diff
@@ -48,31 +73,40 @@ Professional AI repositories adhere to the Conventional Commits specification:
 
 | Prefix | When to Use | Example |
 | :--- | :--- | :--- |
-| `feat:` | A new user-facing feature or capability | `feat(agent): add tool calling for web search` |
+| `feat:` | A new user-facing feature or model capability | `feat(agent): add tool calling for web search` |
 | `fix:` | A bug fix | `fix(fastapi): handle null embedding response gracefully` |
 | `docs:` | Documentation changes only | `docs(readme): add free Groq API key setup guide` |
 | `refactor:` | Code change that neither fixes a bug nor adds a feature | `refactor(db): convert synchronous session to async session` |
 | `test:` | Adding missing tests or correcting existing tests | `test(task): add edge case tests for task status transitions` |
 | `chore:` | Maintenance, dependencies, tooling updates | `chore(deps): bump langchain to v0.2.5` |
 
----
-
-### 3. Secret Leak Prevention Checklist
-
-Before every push:
-1. Ensure `.env` is explicitly inside `.gitignore`.
-2. Run `git status` to ensure no keys or `.db` files are green (staged).
-3. If an API key is ever accidentally committed, revoke it **immediately** in the provider dashboard—rewriting git history alone is not sufficient because GitHub mirrors commits rapidly.
+#### Intelligent Commit Linter & Suggester
+Our elevated `git_helper.py` provides automated suggestions:
+- `"fixed stuff"` $\rightarrow$ `💡 Suggestion: "fix: resolve stuff"`
+- `"add gemini streaming"` $\rightarrow$ `💡 Suggestion: "feat: add gemini streaming"`
+- `"updated documentation"` $\rightarrow$ `💡 Suggestion: "feat: update documentation"`
 
 ---
 
-## 🛠️ The Hands-on Project: Version-Controlled Project Workflow
+### 3. High-Precision Regex Patterns for AI Secrets
+
+| Provider | Key Format / Prefix | Regex Pattern |
+| :--- | :--- | :--- |
+| **OpenAI** | `sk-...` or `sk-proj-...` | `\b(sk-[a-zA-Z0-9]{20,}\|sk-proj-[a-zA-Z0-9_-]{20,})\b` |
+| **Anthropic** | `sk-ant-...` | `\b(sk-ant-[a-zA-Z0-9_-]{20,})\b` |
+| **Google Gemini** | `AIzaSy...` (39 chars total) | `\b(AIzaSy[a-zA-Z0-9_-]{33})\b` |
+| **Groq** | `gsk_...` | `\b(gsk_[a-zA-Z0-9]{30,})\b` |
+| **Private Keys** | `BEGIN ... PRIVATE KEY` | `-----BEGIN (?:RSA\|EC\|DSA\|OPENSSH) PRIVATE KEY-----` |
+
+---
+
+## 🛠️ The Hands-on Project: Git Security & Quality Gate
 
 In this module, you will build `git_helper.py` to:
-- Programmatically verify Git repository cleanliness
-- Detect accidentally tracked sensitive files (`.env`, `*.pem`, `*.key`)
-- Validate commit message formats against Conventional Commit rules
-- Generate GitHub Actions CI configuration for Python
+- Detect tracked and local sensitive files (`.env`, `id_rsa`, `*.pem`)
+- Scan file contents using regex to catch leaked AI provider keys (OpenAI, Anthropic, Gemini, Groq)
+- Lint commit messages against Conventional Commit rules with automated correction suggestions
+- Accurately determine git branch state, including detached HEAD handling
 
 ### Running the Tests
 ```bash
